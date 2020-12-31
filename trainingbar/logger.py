@@ -31,6 +31,8 @@ class TBarLogger:
             for lgr_name in ignore_loggers:
                 lgr = logging.getLogger(lgr_name)
                 lgr.handlers = [h for h in lgr.handlers if not isinstance(h, logging.StreamHandler)]
+        gdisclgr = logging.getLogger('googleapiclient')
+        gdisclgr.setLevel(logging.ERROR)
         return logger
 
     def get_logger(self):

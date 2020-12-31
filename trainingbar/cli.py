@@ -102,7 +102,7 @@ def auth_tbar(name: str = typer.Argument("", envvar="GOOGLE_APPLICATION_CREDENTI
 def start_tbar(refresh: int = typer.Argument(10), project: str = typer.Argument("", envvar="GCP_PROJECT"), tpu: str = typer.Argument("", envvar="TPU_NAME"), disabled: List[str] = typer.Option(['disk'])):
     from trainingbar.bar import TrainingBar
     typer.echo("Starting TrainingBar Monitoring")
-    tb = TrainingBar(daemon=True, disabled=disabled, xla_params={'tpu_name': tpu, 'project': project})
+    tb = TrainingBar(daemon=True, disabled=disabled, reinit=True, xla_params={'tpu_name': tpu, 'project': project})
     while True:
         try:
             time.sleep(10)

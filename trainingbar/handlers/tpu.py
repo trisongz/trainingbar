@@ -27,7 +27,7 @@ def check_tpu(params):
     p = {'tpu_name': None, 'project': None}
     p.update(params)
     try:
-        tpu_config = tpunicorn_query(p['project'])
+        tpu_config = tpunicorn_query(project=p['project'], tpuname=p['tpu_name'])
         if tpu_config:
             tpu_config['tpu_memory'] = _mesh_memory[tpu_config['mesh']]
             p.update(tpu_config)

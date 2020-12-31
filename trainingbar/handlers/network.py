@@ -239,8 +239,8 @@ def parse_tpu_data(tpu):
     }
     return tpu_config
 
-def tpunicorn_query(project):
-    config = {'project': project}
+def tpunicorn_query(project, tpuname):
+    config = {'project': project, 'tpu_name': tpuname}
     if not env['colab']:
         import tpunicorn
         tpu_data = None
@@ -254,7 +254,7 @@ def tpunicorn_query(project):
                 continue
         
         selected_tpu = None
-        tpu_name = os.environ.get('TPU_NAME', None)
+        tpu_name = tpuname or os.environ.get('TPU_NAME', None)
         if not tpu_data:
             print('Failed to find a TPU - Ensure you have the correct GOOGLE_APPLICATION_CREDENTIALS set for your project')
             sys.exit()
@@ -272,6 +272,9 @@ def tpunicorn_query(project):
             
         else:
             selected_tpu = tpu_data[0]
+            if tpuname and selected_tpu['name'] != tpuname:
+                _name = selected_tpu["name"].split('/')[-1]
+                print(f'TPU {tpuname} was not found. Setting TPU Monitoring to {_name}')
 
         tpu_config = parse_tpu_data(selected_tpu)
         config.update(tpu_config)
