@@ -16,3 +16,6 @@ build.sh
 #tpubar/auth.json
 
 docs/.DS_Store
+docs/tpumonitor.png
+docs/tpubar_img.png
+docs/T5_on_TPU_Torch_XLA_TPUBar.ipynb

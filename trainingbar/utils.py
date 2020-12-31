@@ -8,6 +8,14 @@ from subprocess import check_output
 import logging
 
 
+_timer_formats = {
+    'secs': ['sec', 'secs', 'second', 'seconds', 's'],
+    'mins': ['min', 'mins', 'minute', 'minutes', 'm'],
+    'hrs': ['hr', 'hrs', 'hour', 'hours', 'h'],
+    'days': ['day', 'days', 'd'],
+    'wks': ['wk', 'wks', 'week', 'weeks' 'w']
+}
+
 def FormatSize(bytes, suffix="B"):
     factor = 1024
     for unit in ["", "K", "M", "G", "T", "P"]:

@@ -2,7 +2,7 @@ import sys
 import time
 from threading import Thread, Lock
 from trainingbar.handlers.network import TimeSeriesMonitor, tpu_workers_list, tpunicorn_query
-from trainingbar.utils import FormatSize
+from trainingbar.utils import FormatSize, _timer_formats
 from tensorflow.python.profiler import profiler_client
 import os
 import re
@@ -44,6 +44,7 @@ class TPUMonitor:
         self.client = client
         self.delay = delay
         self.run_bg = background
+        self.time = time.time()
         self._lock = Lock()
         self._setup()
         if not self.num_workers:
@@ -56,6 +57,8 @@ class TPUMonitor:
         while not self.stopped:
             with self._lock:
                 self._getdata()
+                if self.check_pulse:
+                    self.pulse(tpu_stats=self.tpu_data)
                 time.sleep(self.delay)
     
     def update(self):
@@ -96,6 +99,7 @@ class TPUMonitor:
         self.monitor = None
         self.tpu_data = {}
         self.num_workers = 0
+        self.check_pulse = False
         if self.tpu_config.get('tpu_name', None):
             self.monitor = TimeSeriesMonitor(project_id=self.tpu_config['project'])
             self.tpu_max_mem = self.tpu_config['tpu_memory']
@@ -105,6 +109,51 @@ class TPUMonitor:
             except:
                 self.tpu_config['workers'] = []
                 self.num_workers = int(self.tpu_config['mesh'].split('-')[-1])
-        
+    
+    def create_timeout_hook(self, hook, min_mxu=10.00, num_timeouts=50):
+        self.timeout_hook = {'idx': 0, 'num_timeouts': num_timeouts, 'hook': hook, 'min_mxu': float(min_mxu), 'pulse': 0.00, 'warnings': 0}
+        self.tpu_pulse = False
+        self.check_pulse = True
+        self.log = self.client(ops='logger')
+        self.log(f'Created timeout hook. Will invoke after {float(num_timeouts) * self.delay} secs if TPU falls below {min_mxu} after the first TPU Pulse.')
+
+    def pulse(self, tpu_stats=None):
+        if tpu_stats:
+            self.timeout_hook['pulse'] = tpu_stats.get('tpu_mxu_util', self.timeout_hook['pulse'])
+            if not self.tpu_pulse:
+                if tpu_stats.get('tpu_mxu_util', 0.00) > 5.00 and self.get_time(fmt='mins') > 5.00:
+                    self.tpu_pulse = True
+            else:
+                if self.timeout_hook['pulse'] < self.timeout_hook['min_mxu']:
+                    self.timeout_hook['idx'] += 1
+                    self.timeout_hook['warnings'] += 1
+                    if self.timeout_hook['warnings'] % self.timeout_hook['num_timeouts'] == 0:
+                        msg = f"TrainingBar has detected {self.timeout_hook['warnings']} periods of under {self.timeout_hook['min_mxu']:.2f}%. Last TPU MXU Pulse: {self.timeout_hook['pulse']:.2f}%. Time Alive: {self.get_time(fmt='hrs'):.2f} hrs"
+                        self.log(msg)
+                        self.timeout_hook['hook'](msg)
+                else:
+                    self.timeout_hook['warnings'] = 0
+        else:
+            if self.tpu_pulse:
+                self.timeout_hook['warnings'] += 1
+                if self.timeout_hook['warnings'] % self.timeout_hook['num_timeouts'] == 0:
+                    msg = f"Potential TPU Runtime Error: TrainingBar has detected {self.timeout_hook['warnings']} periods of under {self.timeout_hook['min_mxu']:.2f}%. Last TPU MXU Pulse: {self.timeout_hook['pulse']:.2f}%. Time Alive: {self.get_time(fmt='hrs'):.2f} hrs"
+                    self.log(msg)
+                    self.timeout_hook['hook'](msg)
+
+
+    def get_time(self, fmt='mins'):
+        _stoptime = time.time()
+        total_time = _stoptime - self.time
+        if fmt in _timer_formats['wks']:
+            total_time /= 604800
+        elif fmt in _timer_formats['days']:
+            total_time /= 86400
+        elif fmt in _timer_formats['hrs']:
+            total_time /= 3600
+        elif fmt in _timer_formats['mins']:
+            total_time /= 60
+        return total_time
+
     def __len__(self):
         return self.num_workers
