@@ -1,0 +1,17 @@
+
+trainingbar.egg-info*
+*.vscode
+*cache
+*__pycache__
+*logs
+*dist
+*build
+build.sh
+*test.py
+*test2.py
+*cli_v1.py
+*host.json
+*pyproject.toml
+#*auth.json
+#tpubar/auth.json
+
